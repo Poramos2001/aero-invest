@@ -24,23 +24,34 @@ os.makedirs(DATA_DIR, exist_ok=True)
 
 # Company List
 companies = {
-        "Boeing": "BA",
-        "Airbus": "AIR.PA",
-        "Airbus ADR": "EADSY",
-        "Lockheed Martin": "LMT",
-        "Northrop Grumman": "NOC",
-        "Raytheon Technologies": "RTX",
-        "General Dynamics": "GD",
-        "Textron": "TXT",
-        "Spirit AeroSystems": "SPR",
-        "Rolls-Royce": "RR.L",
-        "Safran": "SAF.PA",
-        "Leonardo": "LDO.MI",
-        "Honeywell": "HON",
-        "Embraer": "ERJ",
-        "Virgin Galactic": "SPCE",
-        "Rocket Lab": "RKLB",
-        "L3Harris Technologies": "LHX",
+     # Aerospace & Defense
+    "Boeing": "BA",
+    "Airbus SE": "AIR.PA",
+    "Airbus ADR": "EADSY",
+    "Lockheed Martin": "LMT",
+    "Northrop Grumman": "NOC",
+    "Raytheon Technologies (RTX Corp)": "RTX",
+    "General Dynamics": "GD",
+    "Textron": "TXT",
+    "Spirit AeroSystems": "SPR",
+    "Rolls-Royce Holdings": "RR.L",
+    "Safran": "SAF.PA",
+    "Leonardo S.p.A.": "LDO.MI",
+    "Honeywell International": "HON",
+    "Embraer S.A.": "ERJ",
+    "Virgin Galactic Holdings": "SPCE",
+    "Rocket Lab USA": "RKLB",
+    "L3Harris Technologies": "LHX",
+
+    # Air Carriers
+    "Delta Air Lines": "DAL",
+    "United Airlines Holdings": "UAL",
+    "Southwest Airlines": "LUV",
+    "American Airlines Group": "AAL",
+    "Alaska Air Group": "ALK",
+
+    # Private Space Company (no public ticker)
+    "SpaceX (Private)": "SPAX.PVT"
     }
 
 
@@ -245,8 +256,5 @@ def run_all_extractions():
 
 # Main Execution
 if __name__ == "__main__":
-    # Only run when executing this file directly
-    df = fetch_stock_data()
-    print(df)
-
-fetch_stock_data()
+    run_all_extractions()
+    
