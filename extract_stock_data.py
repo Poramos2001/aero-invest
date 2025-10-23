@@ -1,10 +1,5 @@
 from io import StringIO
 import ssl, certifi
-
-# 🔒 Força o Python a usar os certificados corretos
-ssl_context = ssl.create_default_context(cafile=certifi.where())
-ssl._create_default_https_context = lambda: ssl_context
-
 import pandas as pd
 import requests
 import os
@@ -16,6 +11,12 @@ from bs4 import BeautifulSoup
 import json
 
 
+# Create SSL context that uses the certificate authority (CA) bundle
+# This ensures that HTTPS requests trust certificates signed by recognized authorities
+ssl_context = ssl.create_default_context(cafile=certifi.where())
+# Overrides the default HTTPS context used by Python
+ssl._create_default_https_context = lambda: ssl_context
+
 # Load environment variables
 load_dotenv()
 DATA_DIR = "data"
@@ -25,7 +26,6 @@ FINNHUB_API_KEY = os.getenv("FINNHUB_API_KEY")
 ICAO_API_KEY = os.getenv("ICAO_API_KEY")
 AMADEUS_API_KEY = os.getenv("AMADEUS_API_KEY")
 AMADEUS_API_SECRET = os.getenv("AMADEUS_API_SECRET")
-
 
 # Company List
 with open("companies.json", "r") as f:
@@ -139,14 +139,51 @@ def extract_finnhub():
     return df   
 
 
+def _missing_companies(companies, df):
+    """Find the companies in `companies` that are not in the dataframe"""
+    if not isinstance(companies, set):
+        dict_tuples = set(companies.items())
+    else:
+        dict_tuples = companies
+    df_tuples = set(zip(df["name"], df["symbol"]))
+
+    # Find tuples in dict but not in DataFrame
+    missing_tuples_set = dict_tuples - df_tuples
+    return missing_tuples_set
+
+
 def run_stock_extraction():
     """Run Yahoo/Finnhub stock extraction."""
     df = extract_yahoo()
-    if df.empty:
-        print("⚠️ Yahoo failed — switching to Finnhub.")
-        df = extract_finhub()
+
+    missing_companies_set = _missing_companies(companies, df)
+    num_not_found = len(missing_companies_set)
+
+    if num_not_found != 0:
+        print(f"\033[93mYahoo failed to extract {num_not_found} companies.\033[0m")
+        print("\033[91mSwitching to Finnhub.\033[0m")
+        df2 = extract_finnhub()
+
+        # Filter df2 to only include rows in missing_companies_set
+        filtered_df2 = df2[df2.apply(lambda row: (row["name"], row["symbol"]) 
+                                     in missing_companies_set, axis=1)]
+
+        # Check if all stocks are now in the df
+        missing_companies_set = _missing_companies(missing_companies_set, df2)
+        num_not_found = len(missing_companies_set)
+
+        if num_not_found != 0:
+            print(f"\033[91m[ERROR] Extraction still failed for {num_not_found} stocks.\033[0m")
+            print("The affected stocks are:")
+            for name, symbol in missing_companies_set:
+                print(f"\t{name} ({symbol})")
+        else:
+            print("\033[92mSuccessfully extracted the remaining companies.\033[0m")
+
+        df = pd.concat([df, filtered_df2], ignore_index=True)
+
     df.to_csv(os.path.join(DATA_DIR, "stocks.csv"), index=False)
-    print("💾 Saved stock data → data/stocks.csv")
+    print("Saved stock data → data/stocks.csv")
     return df
 
 # Airports list extractor
