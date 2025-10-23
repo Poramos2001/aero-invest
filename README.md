@@ -16,9 +16,24 @@ Cleans and standardizes the data
 ### 3. Load
 Stores the processed data into a **PostgreSQL** database for analytics and visualization.  
 
+
 This project is a simplified prototype of a potential data infrastructure for a startup idea — an application that aims to deliver financial and operational insights on the aerospace industry. 
 
 
+AeroInvest/
+├── README.md                   # Project documentation and overview
+├── pyproject.toml              # Project dependencies and build configuration
+├── companies.json              # List of aerospace companies used for stock data extraction
+├── main.py                     # Main ETL pipeline controller that orchestrates all stages
+├── load.py                     # Loads cleaned and transformed data into PostgreSQL
+│
+├── NTSB_Aviation_Reports/      # Folder containing downloaded NTSB aviation reports (PDFs)
+│
+└── src/                        # Source code for data extraction and transformation
+    ├── extract_flight_stats.py # Collects airport and flight statistics from online datasets
+    ├── extract_reports.py      # Dynamically scrapes NTSB aviation reports using Selenium
+    ├── extract_stock_data.py   # Fetches and preprocesses aerospace stock market data
+    └── transform.py            # Cleans, normalizes, and integrates all extracted data
 
 ---
 Link to the ASN [Database standards](https://asn.flightsafety.org/about/ASN-standards.pdf)
