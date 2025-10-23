@@ -40,29 +40,7 @@ def load_to_db(df: pd.DataFrame, table_name: str, if_exists: str = "replace"):
     finally:
         engine.dispose()
 
-# -----------------------------
-# Load all transformed CSVs
-# -----------------------------
-TRANSFORMED_DIR = "data/transformed"
 
-def run_all_loads():
-    """Load all transformed datasets into PostgreSQL"""
-    print("\n🚀 Starting Data Loading Pipeline...\n")
-    
-    datasets = {
-        "stocks": "stocks_clean.csv",
-        "airports": "airports_clean.csv",
-    }
-
-    for table_name, file_name in datasets.items():
-        path = os.path.join(TRANSFORMED_DIR, file_name)
-        if os.path.exists(path):
-            df = pd.read_csv(path)
-            load_to_db(df, table_name)
-        else:
-            print(f"⚠️ File {file_name} not found. Skipping table '{table_name}'.")
-
-    print("\n✅ All datasets loaded into PostgreSQL!\n")
 
 def verify_data():
     """
