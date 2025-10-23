@@ -65,6 +65,30 @@ def _static_get_request(url, max_retries = 3, delay = 5):
 
 
 def _wait_for_all_blocks(driver, timeout=20, check_interval=2):
+    """
+    Waits for the list of report blocks on the NTSB aviation reports page to stabilize,
+    indicating that all dynamically loaded content has likely finished rendering.
+
+    This function repeatedly checks the number of <div class="block"> elements inside
+    the <div id="investigation_reports"> container. It returns the list of elements
+    once the count stops changing between checks, or when the timeout is reached.
+
+    Parameters:
+    ----------
+    driver : selenium.webdriver.Chrome
+        The active Selenium WebDriver instance controlling the browser.
+    timeout : int, optional
+        Maximum time to wait (in seconds) before returning the current list of blocks.
+        Default is 20 seconds.
+    check_interval : int, optional
+        Time interval (in seconds) between consecutive checks. Default is 2 seconds.
+
+    Returns:
+    -------
+    list of selenium.webdriver.remote.webelement.WebElement
+        A list of <div class="block"> elements found inside the investigation_reports container.
+        May be incomplete if the timeout is reached before stabilization.
+    """
     end_time = time.time() + timeout
     previous_count = 0
 
