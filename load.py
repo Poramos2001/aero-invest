@@ -44,7 +44,8 @@ def load_to_db(df: pd.DataFrame, table_name: str, if_exists: str = "replace"):
 
 def verify_data():
     """
-    Verify that data was loaded correctly by running some basic queries
+    Verify that data was loaded correctly by running some basic queries.
+    Handles special characters in column names and avoids immutabledict errors.
     """
     print("🔍 Verifying data was loaded correctly...")
     
@@ -54,29 +55,30 @@ def verify_data():
         engine = create_engine(connection_string)
         
         # Count records in stocks
-        stocks_count = pd.read_sql("SELECT COUNT(*) as count FROM stocks", engine)
+        stocks_count = pd.read_sql("SELECT COUNT(*) AS count FROM stocks", engine)
         print(f"📊 Stocks in database: {stocks_count.iloc[0]['count']}")
         
         # Count records in airports
-        airports_count = pd.read_sql("SELECT COUNT(*) as count FROM airports", engine)
+        airports_count = pd.read_sql("SELECT COUNT(*) AS count FROM airports", engine)
         print(f"📊 Airports in database: {airports_count.iloc[0]['count']}")
         
         # Show sample stock data
-        sample_stocks = pd.read_sql("SELECT symbol, name, previous_open, previous_close, daily_pct_change FROM stocks LIMIT 5", engine)
+        df_stocks = pd.read_sql("SELECT * FROM stocks LIMIT 5", engine)
         print("\n📋 Sample stocks:")
-        print('\tNOTE: This is a non-exhaustive view of the table; some columns have been omitted for clarity.')
-        print(sample_stocks.to_string(index=False))
+        print('\tNOTE: Some columns may contain special characters or % signs.')
+        print(df_stocks.head().to_string(index=False))
         
         # Show sample airport data
-        sample_airports = pd.read_sql("SELECT name, iso_country, municipality FROM airports LIMIT 5", engine)
+        df_airports = pd.read_sql("SELECT * FROM airports LIMIT 5", engine)
         print("\n📋 Sample airports:")
-        print('\tNOTE: This is a non-exhaustive view of the table; some columns have been omitted for clarity.')
-        print(sample_airports.to_string(index=False))
+        print('\tNOTE: Some columns may contain spaces or special characters.')
+        print(df_airports.head().to_string(index=False))
         
     except Exception as e:
         print(f"❌ Error verifying data: {e}")
     finally:
         engine.dispose()
+
 # -----------------------------
 # Run as script
 # -----------------------------
