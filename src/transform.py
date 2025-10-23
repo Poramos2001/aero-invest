@@ -2,24 +2,18 @@ import pandas as pd
 import os
 from datetime import datetime
 
-DATA_DIR = "data"
-OUTPUT_DIR = "data/transformed"
-os.makedirs(OUTPUT_DIR, exist_ok=True)
-
 
 def transform_reports(df):
     df = df.replace("N/A", None)
     return df
 
 
-def transform_stocks():
+def transform_stocks(df):
     """📊 Clean and enrich stock data"""
-    path = os.path.join(DATA_DIR, "stocks.csv")
-    if not os.path.exists(path):
+    if df.empty:
         print("⚠️ Stock data not found.")
         return pd.DataFrame()
 
-    df = pd.read_csv(path)
     print(f"🔍 Transforming {len(df)} stock records...")
 
     # Normalize columns
@@ -40,20 +34,16 @@ def transform_stocks():
     )
 
     df["transformed_at"] = datetime.utcnow()
-    out_path = os.path.join(OUTPUT_DIR, "stocks_clean.csv")
-    df.to_csv(out_path, index=False)
-    print(f"💾 Saved → {out_path}")
+
     return df
 
 
-def transform_airports():
+def transform_airports(df):
     """🛫 Filter and clean airport data"""
-    path = os.path.join(DATA_DIR, "airports.csv")
-    if not os.path.exists(path):
+    if df.empty:
         print("⚠️ Airport data not found.")
         return pd.DataFrame()
 
-    df = pd.read_csv(path)
     print(f"🔍 Transforming {len(df)} airports...")
 
     # Keep only large and medium airports
@@ -65,20 +55,17 @@ def transform_airports():
     df["region"] = df["iso_region"].str.split("-").str[1]
 
     df["transformed_at"] = datetime.utcnow()
-    out_path = os.path.join(OUTPUT_DIR, "airports_clean.csv")
-    df.to_csv(out_path, index=False)
-    print(f"💾 Saved → {out_path}")
+
+    print(f"Transformed all airports")
     return df
 
 
-def transform_transtats():
+def transform_transtats(df):
     """📈 Process TranStats passenger data"""
-    path = os.path.join(DATA_DIR, "transtats_air_traffic.csv")
-    if not os.path.exists(path):
+    if df.empty:
         print("⚠️ TranStats data not found.")
         return pd.DataFrame()
 
-    df = pd.read_csv(path)
     print(f"🔍 Transforming {len(df)} TranStats records...")
 
     # Clean year/month
@@ -91,25 +78,16 @@ def transform_transtats():
     yearly["YoY_Change_%"] = yearly["TOTAL"].pct_change() * 100
 
     yearly["transformed_at"] = datetime.utcnow()
-    out_path = os.path.join(OUTPUT_DIR, "transtats_summary.csv")
-    yearly.to_csv(out_path, index=False)
-    print(f"💾 Saved → {out_path}")
+    
     return yearly
 
 
-def transform_flights():
+def transform_flights(df):
     """✈️ Clean Amadeus flight data"""
-    files = [f for f in os.listdir(DATA_DIR) if f.startswith("flights_") and f.endswith(".csv")]
-    if not files:
+    if df.empty:
         print("⚠️ No flight data found.")
         return pd.DataFrame()
 
-    df_list = []
-    for file in files:
-        temp = pd.read_csv(os.path.join(DATA_DIR, file))
-        df_list.append(temp)
-
-    df = pd.concat(df_list, ignore_index=True)
     print(f"🔍 Transforming {len(df)} flight records...")
 
     # Convert datetimes
@@ -133,21 +111,8 @@ def transform_flights():
     df = df.merge(price_summary, on="carrier_code", how="left")
     df["transformed_at"] = datetime.utcnow()
 
-    out_path = os.path.join(OUTPUT_DIR, "flights_clean.csv")
-    df.to_csv(out_path, index=False)
-    print(f"💾 Saved → {out_path}")
     return df
 
 
-def run_all_transformations():
-    """🚀 Run all transformations sequentially"""
-    print("\n🚀 Starting Data Transformation Pipeline...\n")
-    transform_stocks()
-    transform_airports()
-    transform_transtats()
-    transform_flights()
-    print("\n✅ All datasets transformed and saved!\n")
-
-
 if __name__ == "__main__":
-    run_all_transformations()
+    pass
