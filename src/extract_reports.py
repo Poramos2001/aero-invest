@@ -3,9 +3,15 @@ from bs4 import BeautifulSoup
 from pathlib import Path
 from urllib.parse import urljoin
 import time
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.common.by import By
+from webdriver_manager.chrome import ChromeDriverManager
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 
 
-def _get_request(url, max_retries = 3, delay = 5):
+def _static_get_request(url, max_retries = 3, delay = 5):
     """
     Sends a GET request to the specified URL with retry logic for server-side errors.
 
@@ -59,7 +65,21 @@ def _get_request(url, max_retries = 3, delay = 5):
             print("\033[91mRequest failed due to GET request exception:\033[0m")
             print(e)
             return None
-    
+
+
+def _wait_for_all_pdfs(driver, timeout=20, check_interval=2):
+    end_time = time.time() + timeout
+    previous_count = 0
+
+    while time.time() < end_time:
+        pdf_elements = driver.find_elements(By.XPATH, "//a[contains(@href, '.pdf')]")
+        current_count = len(pdf_elements)
+        if current_count == previous_count and current_count > 0:
+            return pdf_elements
+        previous_count = current_count
+        time.sleep(check_interval)
+    return pdf_elements  # Return whatever was found
+
 
 def web_scrap_reports():
     """
@@ -72,36 +92,37 @@ def web_scrap_reports():
     1. Creates a local directory named 'NTSB_Aviation_Reports' (if it doesn't exist) to store the reports.
     2. Downloads each PDF file unless it has already been downloaded.
     """
-
-    print("\n\n\033[94mFetching accident reports from NTSB...\033[0m")
-    # Base URL of the NTSB aviation reports page
-    base_url = "https://www.ntsb.gov/investigations/AccidentReports/Pages/Reports.aspx?mode=Aviation"
-
     # Create a folder to store PDFs
     parent_dir = Path(__file__).parent.parent
     report_folder = parent_dir / "NTSB_Aviation_Reports" # "/" operator of the pathlib module
     report_folder.mkdir(exist_ok=True)
 
-    # Get the HTML content of the page
-    response = _get_request(base_url)
+    print("\n\n\033[94mFetching accident reports from NTSB...\033[0m")
+    # Base URL of the NTSB aviation reports page
+    base_url = "https://www.ntsb.gov/investigations/AccidentReports/Pages/Reports.aspx?mode=Aviation"
+
+    # Check connection with website (through HTTP status)
+    response = _static_get_request(base_url)
     if response is None:
         print("Could not download pdfs because the HTTP get request did not come through.")
         return
-    
-    soup = BeautifulSoup(response.content, "html.parser")
+
+    # Setup Chrome WebDriver
+    options = webdriver.ChromeOptions()
+    options.add_argument("--headless")  # Run in background
+    service = Service(ChromeDriverManager().install()) # Handles driver download and installation
+    driver = webdriver.Chrome(service=service, options=options)
+
+    driver.get(base_url)
 
     # Find all links that point to PDFs
-    print("Finding PDF links...")
-    pdf_links = []
-    for a_tag in soup.find_all("a", href=True):
-        href = a_tag["href"]
-        if href.lower().endswith(".pdf"):
-            full_url = urljoin("https://www.ntsb.gov", href)
-            pdf_links.append(full_url)
-    
+    print("Finding report PDF links...")
+    pdf_elements = _wait_for_all_pdfs(driver) # Wait for JavaScript to load content and extract it
+    pdf_links = [elem.get_attribute("href") for elem in pdf_elements]
+
     if len(pdf_links) == 0:
         print(f"\033[91mNo PDFs were found in:\033[0m {base_url}")
-        return
+        return   
     
 
 
@@ -121,7 +142,7 @@ def web_scrap_reports():
                 continue 
         
         print(f"Downloading: {filename}")
-        pdf_response = _get_request(pdf_url)
+        pdf_response = _static_get_request(pdf_url)
         if pdf_response is None:
             print(f"\033[91mFailed to fetch {pdf_url}:\033[0m")
             continue
@@ -135,9 +156,4 @@ def web_scrap_reports():
 
 
 if __name__ == "__main__":
-    base_url = "https://www.ntsb.gov/investigations/AccidentReports/Pages/Reports.aspx?mode=Aviation"
-
-    # Get the HTML content of the page
-    response = _get_request(base_url)
-    with open("HTML.txt", "w") as f:
-        f.write(response.text)
+    web_scrap_reports()
