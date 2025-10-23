@@ -1,5 +1,27 @@
-# aero-invest
+# ETL Pipeline Project: AeroInvest
 
+This project is a simple **ETL (Extract, Transform, Load) Pipeline** implemented in Python. The pipeline is designed to:
+### 1. Extract
+Retrieves raw data from multiple sources:
+- **Financial data** from **Yahoo Finance** (primary) and **Finnhub** (backup) for key aerospace companies.  
+- **Safety data** from the **NTSB**, including aviation accident and incident reports.  
+- **Aviation operations data** such as airports and flight statistics from public **CSV datasets** and APIs.  
+
+
+
+### 2. Transform
+Cleans and standardizes the data
+
+
+### 3. Load
+Stores the processed data into a **PostgreSQL** database for analytics and visualization.  
+
+This project is a simplified prototype of a potential data infrastructure for a startup idea — an application that aims to deliver financial and operational insights on the aerospace industry. 
+
+
+
+---
+Link to the ASN [Database standards](https://asn.flightsafety.org/about/ASN-standards.pdf)
 
 To set up **ChromeDriver** on Ubuntu, follow these steps:
 
