@@ -56,7 +56,7 @@ def _get_request(url, max_retries = 3, delay = 5):
 
         except requests.exceptions.RequestException as e:
             # Catch other request-related issues (e.g., DNS failure, timeout)
-            print("\033[91mRequest failed due to request exception:\033[0m")
+            print("\033[91mRequest failed due to GET request exception:\033[0m")
             print(e)
             return None
     
@@ -91,14 +91,28 @@ def web_scrap_reports():
     soup = BeautifulSoup(response.content, "html.parser")
 
     # Find all links that point to PDFs
+    print("Finding PDF links...")
     pdf_links = []
     for a_tag in soup.find_all("a", href=True):
         href = a_tag["href"]
         if href.lower().endswith(".pdf"):
-            full_url = urljoin(base_url, href)
+            full_url = urljoin("https://www.ntsb.gov", href)
             pdf_links.append(full_url)
+    
+    if len(pdf_links) == 0:
+        print(f"\033[91mNo PDFs were found in:\033[0m {base_url}")
+        return
+    
+
+
+
+    # TODO: get also report date, number and title
+
+
+
 
     # Download each PDF
+    print("Downloading PDFs...")
     for pdf_url in pdf_links:
         filename = pdf_url.split("/")[-1]
         filepath = report_folder / filename
@@ -119,4 +133,11 @@ def web_scrap_reports():
             print(f"\033[91mFailed to save {filename}:\033[0m")
             print(f"\t{e}")
 
-  
+
+if __name__ == "__main__":
+    base_url = "https://www.ntsb.gov/investigations/AccidentReports/Pages/Reports.aspx?mode=Aviation"
+
+    # Get the HTML content of the page
+    response = _get_request(base_url)
+    with open("HTML.txt", "w") as f:
+        f.write(response.text)
