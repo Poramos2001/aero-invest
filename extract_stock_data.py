@@ -7,16 +7,16 @@ ssl._create_default_https_context = lambda: ssl_context
 
 import pandas as pd
 import requests
-import time
 import os
 from datetime import datetime
 from dotenv import load_dotenv
 import yfinance as yf
 import finnhub
 from bs4 import BeautifulSoup
+import json
+
 
 # Load environment variables
-
 load_dotenv()
 DATA_DIR = "data"
 os.makedirs(DATA_DIR, exist_ok=True)
@@ -28,116 +28,116 @@ AMADEUS_API_SECRET = os.getenv("AMADEUS_API_SECRET")
 
 
 # Company List
-companies = {
-     # Aerospace & Defense
-    "Boeing": "BA",
-    "Airbus SE": "AIR.PA",
-    "Airbus ADR": "EADSY",
-    "Lockheed Martin": "LMT",
-    "Northrop Grumman": "NOC",
-    "Raytheon Technologies (RTX Corp)": "RTX",
-    "General Dynamics": "GD",
-    "Textron": "TXT",
-    "Spirit AeroSystems": "SPR",
-    "Rolls-Royce Holdings": "RR.L",
-    "Safran": "SAF.PA",
-    "Leonardo S.p.A.": "LDO.MI",
-    "Honeywell International": "HON",
-    "Embraer S.A.": "ERJ",
-    "Virgin Galactic Holdings": "SPCE",
-    "Rocket Lab USA": "RKLB",
-    "L3Harris Technologies": "LHX",
-
-    # Air Carriers
-    "Delta Air Lines": "DAL",
-    "United Airlines Holdings": "UAL",
-    "Southwest Airlines": "LUV",
-    "American Airlines Group": "AAL",
-    "Alaska Air Group": "ALK",
-
-    # Private Space Company (no public ticker)
-    "SpaceX (Private)": "SPAX.PVT"
-    }
+with open("companies.json", "r") as f:
+    companies = json.load(f)
 
 
-# Yahoo Finance Extractor
 def extract_yahoo():
     """
-    Extract current stock information from Yahoo Finance
+    Extract current stock information from Yahoo Finance.
+    
+    Attention: the function requires the companies names and tickers to be in 
+    a `companies` variable.
     
     Returns:
         pandas.DataFrame: Company stock information for the selected aerospace companies
     """
-    
+    # ANSI coded for blue
+    print("\n\n\033[94mFetching stock data from Yahoo Finance...\033[0m")
 
     data_list = []
-    print("📈 Fetching live flight data from API...")
+    today = datetime.utcnow().replace(second=0, microsecond=0)
+
     for name, ticker in companies.items():
         try:
             tk=yf.Ticker(ticker)
             info = tk.info
             row = {
-                    "Symbol": info.get("symbol", "--"),
-                    "Name": name,
-                    "Price": info.get("regularMarketPrice", "--"),
-                    "Change": info.get("regularMarketChange", "--"),
-                    "Change %": info.get("regularMarketChangePercent", "--"),
-                    "Volume": info.get("volume", "--"),
-                    "Avg Vol (3M)": info.get("averageVolume", "--"),
-                    "Market Cap": info.get("marketCap", "--"),
-                    "P/E Ratio (TTM)": info.get("trailingPE", "--"),
-                    "52 Wk Change %": info.get("52WeekChange", "--"),
-                    "52 Wk Range": f"{info.get('fiftyTwoWeekLow', '--')} - {info.get('fiftyTwoWeekHigh', '--')}",
-                    "Fetched At": datetime.utcnow()
-                } 
+                "Symbol": info.get("symbol", None),
+                "Name": name,
+                "Previous Open": info.get("regularMarketOpen", None),
+                "Previous Close": info.get("previousClose", None),
+                "Daily % Change": info.get("regularMarketChangePercent", None),
+                "Volume": info.get("volume", None),
+                "Avg Volume (3M)": info.get("averageVolume", None),
+                "Market Cap": info.get("marketCap", None),
+                "P/E Ratio (TTM)": info.get("trailingPE", None),
+                "EPS (TTM)": info.get("trailingEps", None),
+                "52 Wk Change %": info.get("52WeekChange", None),
+                "52 Wk Range": f"{info.get('fiftyTwoWeekLow', None)} - {info.get('fiftyTwoWeekHigh', None)}",
+                "Dividend Yield": info.get("dividendYield", None),
+                "Forward Dividend": info.get("dividendRate", None),
+                "Next Earnings Date": info.get("earningsDate", None),
+                "YTD Return": info.get("ytdReturn", None),
+                "Fetched At": today
+            }
             data_list.append(row)
             print(f"{name}({ticker}) fetched successfully.")
-            time.sleep(0.5)
 
         except Exception as e:
-            print(f"⚠️ Yahoo fetch failed for {name} ({ticker}): {e}")
+            # \033[91m is the ANSI escape code for red
+            print(f"\033[91m[ERROR] Yahoo fetch failed for {name} ({ticker}): {e}\033[0m")
+    
     df=pd.DataFrame(data_list)
     print(df)
     return df
 
-# Finnhub Extractor
 
-def extract_finhub():
-    finnhub_client = finnhub.Client(api_key="d3rl529r01qopgh8udh0d3rl529r01qopgh8udhg")
+def extract_finnhub():
+    """
+    Extract current stock information from Finnhub.
+    
+    Attention: the function requires the companies names and tickers to be in 
+    a `companies` variable.
+    
+    Returns:
+        pandas.DataFrame: Company stock information for the selected aerospace companies
+    """
+    finnhub_client = finnhub.Client(api_key=FINNHUB_API_KEY)
 
+    # ANSI coded for blue
+    print("\n\n\033[94mFetching stock data from Finnhub API (free plan)...\033[0m")
 
     data_list = []
-
-    print("📈 Fetching live stock data from Finnhub API (free plan)...")
+    today = datetime.utcnow().replace(second=0, microsecond=0)
 
     for name, symbol in companies.items():
         try:
             quote = finnhub_client.quote(symbol)
+            profile = finnhub_client.company_profile2(symbol=symbol)
+            metrics = finnhub_client.company_basic_financials(symbol, 'all')
+
             row = {
                 "Symbol": symbol,
                 "Name": name,
-                "Price": quote.get("c", "--"),
-                "Change": quote.get("c", 0) - quote.get("pc", 0),
-                "Change %": ((quote.get("c", 0) - quote.get("pc", 0)) / quote.get("pc", 1)) * 100 if quote.get("pc") else "--",
-                "Volume": "--", # Not available on free plan
-                "Avg Vol (3M)": "--",       # Not available on free plan
-                "Market Cap": "--",          # Not available on free plan
-                "P/E Ratio (TTM)": "--",    # Not available on free plan
-                "52 Wk Change %": "--",      # Not available on free plan
-                "52 Wk Range": "--",          # Not available on free plan
-                "Fetched At": datetime.utcnow()
-
+                "Previous Open": quote.get("o", None),
+                "Previous Close": quote.get("pc", None),
+                "Daily % Change": quote.get("dp", None),
+                "Volume": quote.get("v", None),
+                "Avg Volume (3M)": None,  # Not available in free plan
+                "Market Cap": profile.get("marketCapitalization", None),
+                "P/E Ratio (TTM)": metrics.get("metric", {}).get("peTTM", None),
+                "EPS (TTM)": metrics.get("metric", {}).get("epsTTM", None),
+                "52 Wk Change %": None,  # Not available in free plan
+                "52 Wk Range": None,     # Not available in free plan
+                "Dividend Yield": metrics.get("metric", {}).get("dividendYieldIndicatedAnnual", None),
+                "Forward Dividend": None,  # Not available in free plan
+                "Next Earnings Date": metrics.get("metric", {}).get("nextEarningsDate", None),
+                "YTD Return": None,  # Not available in free plan
+                "Fetched At": today
             }
             data_list.append(row)
             print(f"{name}({symbol}) fetched successfully.")
-            time.sleep(0.5)
+
         except Exception as e:
-            print(f"⚠️ Error fetching {name} ({symbol}): {e}")
+            # \033[91m is the ANSI escape code for red
+            print(f"\033[91m[ERROR] Finnhub fetch failed for {name} ({symbol}): {e}\033[0m")
 
     df = pd.DataFrame(data_list)
     print(df)
+    
+    return df   
 
-    return df
 
 def run_stock_extraction():
     """Run Yahoo/Finnhub stock extraction."""
