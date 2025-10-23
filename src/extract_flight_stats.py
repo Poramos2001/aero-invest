@@ -83,9 +83,6 @@ def extract_transtats():
         df = dfs[-1]
         df["Fetched At"] = datetime.utcnow()
 
-        # Save to CSV
-        # output_path = os.path.join(DATA_DIR, "transtats_air_traffic.csv")
-
         print(f"✅ TranStats data fetched successfully ({len(df)} records).")
         print("Returned dataset")
 

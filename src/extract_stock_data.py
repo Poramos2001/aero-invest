@@ -16,7 +16,7 @@ with open("companies.json", "r") as f:
     companies = json.load(f)
 
 
-def extract_yahoo():
+def _extract_yahoo():
     """
     Extract current stock information from Yahoo Finance.
     
@@ -67,7 +67,7 @@ def extract_yahoo():
     return df
 
 
-def extract_finnhub():
+def _extract_finnhub():
     """
     Extract current stock information from Finnhub.
     
@@ -138,7 +138,7 @@ def _missing_companies(companies, df):
 
 def run_stock_extraction():
     """Run Yahoo/Finnhub stock extraction."""
-    df = extract_yahoo()
+    df = _extract_yahoo()
 
     missing_companies_set = _missing_companies(companies, df)
     num_not_found = len(missing_companies_set)
@@ -146,7 +146,7 @@ def run_stock_extraction():
     if num_not_found != 0:
         print(f"\033[93mYahoo failed to extract {num_not_found} companies.\033[0m")
         print("\033[91mSwitching to Finnhub.\033[0m")
-        df2 = extract_finnhub()
+        df2 = _extract_finnhub()
 
         # Filter df2 to only include rows in missing_companies_set
         filtered_df2 = df2[df2.apply(lambda row: (row["name"], row["symbol"]) 
