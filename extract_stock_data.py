@@ -38,7 +38,7 @@ def extract_yahoo():
         pandas.DataFrame: Company stock information for the selected aerospace companies
     """
     # ANSI coded for blue
-    print("\n\n\033[94mFetching live stock data from Yahoo Finance...\033[0m")
+    print("\n\n\033[94mFetching stock data from Yahoo Finance...\033[0m")
 
     data_list = []
     today = datetime.utcnow().replace(second=0, microsecond=0)
@@ -48,22 +48,22 @@ def extract_yahoo():
             tk=yf.Ticker(ticker)
             info = tk.info
             row = {
-                "Symbol": info.get("symbol", "--"),
+                "Symbol": info.get("symbol", None),
                 "Name": name,
-                "Previous Open": info.get("regularMarketOpen", "--"),
-                "Previous Close": info.get("previousClose", "--"),
-                "Daily % Change": info.get("regularMarketChangePercent", "--"),
-                "Volume": info.get("volume", "--"),
-                "Avg Volume (3M)": info.get("averageVolume", "--"),
-                "Market Cap": info.get("marketCap", "--"),
-                "P/E Ratio (TTM)": info.get("trailingPE", "--"),
-                "EPS (TTM)": info.get("trailingEps", "--"),
-                "52 Wk Change %": info.get("52WeekChange", "--"),
-                "52 Wk Range": f"{info.get('fiftyTwoWeekLow', '--')} - {info.get('fiftyTwoWeekHigh', '--')}",
-                "Dividend Yield": info.get("dividendYield", "--"),
-                "Forward Dividend": info.get("dividendRate", "--"),
-                "Next Earnings Date": info.get("earningsDate", "--"),
-                "YTD Return": info.get("ytdReturn", "--"),
+                "Previous Open": info.get("regularMarketOpen", None),
+                "Previous Close": info.get("previousClose", None),
+                "Daily % Change": info.get("regularMarketChangePercent", None),
+                "Volume": info.get("volume", None),
+                "Avg Volume (3M)": info.get("averageVolume", None),
+                "Market Cap": info.get("marketCap", None),
+                "P/E Ratio (TTM)": info.get("trailingPE", None),
+                "EPS (TTM)": info.get("trailingEps", None),
+                "52 Wk Change %": info.get("52WeekChange", None),
+                "52 Wk Range": f"{info.get('fiftyTwoWeekLow', None)} - {info.get('fiftyTwoWeekHigh', None)}",
+                "Dividend Yield": info.get("dividendYield", None),
+                "Forward Dividend": info.get("dividendRate", None),
+                "Next Earnings Date": info.get("earningsDate", None),
+                "YTD Return": info.get("ytdReturn", None),
                 "Fetched At": today
             }
             data_list.append(row)
@@ -91,7 +91,7 @@ def extract_finnhub():
     finnhub_client = finnhub.Client(api_key=FINNHUB_API_KEY)
 
     # ANSI coded for blue
-    print("\n\n\033[94mFetching live stock data from Finnhub API (free plan)...\033[0m")
+    print("\n\n\033[94mFetching stock data from Finnhub API (free plan)...\033[0m")
 
     data_list = []
     today = datetime.utcnow().replace(second=0, microsecond=0)
