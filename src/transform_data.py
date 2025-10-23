@@ -6,6 +6,12 @@ DATA_DIR = "data"
 OUTPUT_DIR = "data/transformed"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
+
+def transform_reports(df):
+    df = df.replace("N/A", None)
+    return df
+
+
 def transform_stocks():
     """📊 Clean and enrich stock data"""
     path = os.path.join(DATA_DIR, "stocks.csv")
