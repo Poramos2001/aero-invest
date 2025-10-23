@@ -1,6 +1,9 @@
-"""
-Data Extraction Module
-"""
+from io import StringIO
+import ssl, certifi
+
+# 🔒 Força o Python a usar os certificados corretos
+ssl_context = ssl.create_default_context(cafile=certifi.where())
+ssl._create_default_https_context = lambda: ssl_context
 
 import pandas as pd
 import requests
@@ -10,17 +13,19 @@ from datetime import datetime
 from dotenv import load_dotenv
 import yfinance as yf
 import finnhub
+from bs4 import BeautifulSoup
 
 # Load environment variables
 
 load_dotenv()
+DATA_DIR = "data"
+os.makedirs(DATA_DIR, exist_ok=True)
+
 FINNHUB_API_KEY = os.getenv("FINNHUB_API_KEY")
 ICAO_API_KEY = os.getenv("ICAO_API_KEY")
 AMADEUS_API_KEY = os.getenv("AMADEUS_API_KEY")
 AMADEUS_API_SECRET = os.getenv("AMADEUS_API_SECRET")
 
-DATA_DIR = "data"
-os.makedirs(DATA_DIR, exist_ok=True)
 
 # Company List
 companies = {
@@ -134,56 +139,115 @@ def extract_finhub():
 
     return df
 
-# ICAO Data Extractors
-ICAO_BASE_URL = "https://applications.icao.int/dataservices/api"
+def run_stock_extraction():
+    """Run Yahoo/Finnhub stock extraction."""
+    df = extract_yahoo()
+    if df.empty:
+        print("⚠️ Yahoo failed — switching to Finnhub.")
+        df = extract_finhub()
+    df.to_csv(os.path.join(DATA_DIR, "stocks.csv"), index=False)
+    print("💾 Saved stock data → data/stocks.csv")
+    return df
 
-def fetch_icao_dataset(dataset_name, extra_params=None):
-    params = {"api_key": ICAO_API_KEY, "format": "JSON"}
-    if extra_params:
-        params.update(extra_params)
-    url = f"{ICAO_BASE_URL}/{dataset_name}"
-    print(f"🌐 Fetching ICAO dataset: {dataset_name} ...")
+# Airports list extractor
+
+def extract_airports():
+    #Fetch all airports from OurAirports open data.
+    print("🛫 Fetching all airports from OurAirports open dataset...")
+    url = "https://ourairports.com/data/airports.csv"
+
+    import ssl
+    ssl._create_default_https_context = ssl._create_unverified_context
+
     try:
-        response = requests.get(url, params=params)
-        response.raise_for_status()
-        data = response.json()
-        df = pd.json_normalize(data)
+        df = pd.read_csv(url)
         df["Fetched At"] = datetime.utcnow()
-        print(f"✅ ICAO {dataset_name} fetched successfully ({len(df)} records).")
+        df.to_csv(os.path.join(DATA_DIR, "airports.csv"), index=False)
+        print(f"✅ Airports dataset fetched successfully ({len(df)} records).")
+        print("💾 Saved airports → data/airports.csv")
         return df
     except Exception as e:
-        print(f"⚠️ ICAO {dataset_name} fetch failed: {e}")
+        print(f"⚠️ Failed to fetch airports: {e}")
         return pd.DataFrame()
 
-def extract_notams():
-    return fetch_icao_dataset("notams-realtime-list")
+# Air traffic statistics from USA
 
-def extract_accidents():
-    return fetch_icao_dataset("accidents")
+def extract_transtats():
+    """
+    📊 Extract monthly air traffic statistics from the TranStats (BTS) portal.
+    The data includes domestic and international passenger volumes by month and year.
+    """
 
-def extract_incidents():
-    return fetch_icao_dataset("incidents")
+    print("🌐 Fetching air traffic data from TranStats (Bureau of Transportation Statistics)...")
 
-# Amadeus Flight Availability extractor
-AMADEUS_TOKEN_URL = "https://test.api.amadeus.com/v1/security/oauth2/token"
-AMADEUS_FLIGHTS_URL = "https://test.api.amadeus.com/v1/shopping/availability/flight-availabilities"
+    # TranStats URL and parameters
+    url = "https://www.transtats.bts.gov/Data_Elements.aspx"
+    params = {"Data": "1"}  # Example dataset ID (air traffic summary)
 
-def get_amadeus_token():
-    """Authenticate and get Amadeus API access token."""
     try:
-        response = requests.post(AMADEUS_TOKEN_URL, data={
-            "grant_type": "client_credentials",
-            "client_id": AMADEUS_API_KEY,
-            "client_secret": AMADEUS_API_SECRET
+        # Start session
+        session = requests.Session()
+
+        # Access the initial form page
+        resp = session.get(url, params=params)
+        soup = BeautifulSoup(resp.text, "html.parser")
+
+        # Capture hidden ASP.NET form fields
+        data = {i.get("name"): i.get("value", "") for i in soup.find_all("input", type="hidden")}
+
+        # Add query parameters (example filter)
+        data.update({
+            "AirportList": "All",
+            "CarrierList": "All",
+            "Submit": "Submit"
         })
-        response.raise_for_status()
-        return response.json().get("access_token")
+
+        # Submit form (POST request)
+        resp2 = session.post(url, params=params, data=data)
+
+        # Extract HTML table(s)
+        dfs = pd.read_html(StringIO(resp2.text))
+        df = dfs[-1]
+        df["Fetched At"] = datetime.utcnow()
+
+        # Save to CSV
+        output_path = os.path.join(DATA_DIR, "transtats_air_traffic.csv")
+        df.to_csv(output_path, index=False)
+
+        print(f"✅ TranStats data fetched successfully ({len(df)} records).")
+        print(f"💾 Saved dataset → {output_path}")
+
+        return df
+
     except Exception as e:
-        print(f"⚠️ Failed to get Amadeus token: {e}")
+        print(f"⚠️ Failed to fetch TranStats data: {e}")
+        return pd.DataFrame()
+
+# Amadeus endpoints
+AMADEUS_TOKEN_URL = "https://test.api.amadeus.com/v1/security/oauth2/token"
+AMADEUS_FLIGHTS_URL = "https://test.api.amadeus.com/v2/shopping/flight-offers"  
+
+# Obtain API token
+def get_amadeus_token():
+    try:
+        res = requests.post(
+            AMADEUS_TOKEN_URL,
+            data={
+                "grant_type": "client_credentials",
+                "client_id": AMADEUS_API_KEY,
+                "client_secret": AMADEUS_API_SECRET,
+            },
+        )
+        res.raise_for_status()
+        token = res.json().get("access_token")
+        print("✅ Amadeus token obtained.")
+        return token
+    except Exception as e:
+        print(f"⚠️ Amadeus token request failed: {e}")
         return None
 
-def extract_flight_availabilities(origin, destination, departure_date):
-    """Extract flight seat availability for a given route/date."""
+# Extract flight offers
+def extract_flight_offers(origin, destination, date):
     token = get_amadeus_token()
     if not token:
         return pd.DataFrame()
@@ -192,69 +256,65 @@ def extract_flight_availabilities(origin, destination, departure_date):
     params = {
         "originLocationCode": origin,
         "destinationLocationCode": destination,
-        "departureDate": departure_date,
-        "adults": 1
+        "departureDate": date,
+        "adults": 1,
+        "currencyCode": "EUR",
+        "max": 20,  # limit to 20 offers
     }
+
     try:
-        response = requests.get(AMADEUS_FLIGHTS_URL, headers=headers, params=params)
-        response.raise_for_status()
-        data = response.json()
+        res = requests.get(AMADEUS_FLIGHTS_URL, headers=headers, params=params)
+        res.raise_for_status()
+        data = res.json()
+
         flights = []
-        for item in data.get("data", []):
-            flight = item.get("flightDesignator", {})
-            for segment in item.get("availability", []):
-                flights.append({
-                    "origin": origin,
-                    "destination": destination,
-                    "date": departure_date,
-                    "flight_number": flight,
-                    "cabin": segment.get("cabin"),
-                    "available_seats": segment.get("numberOfBookableSeats"),
-                    "Fetched At": datetime.utcnow()
-                })
-        print(f"✅ Amadeus flights fetched successfully ({len(flights)} records).")
-        return pd.DataFrame(flights)
+        for offer in data.get("data", []):
+            price = offer.get("price", {}).get("total")
+            for itinerary in offer.get("itineraries", []):
+                for segment in itinerary.get("segments", []):
+                    flights.append({
+                        "origin": segment.get("departure", {}).get("iataCode"),
+                        "destination": segment.get("arrival", {}).get("iataCode"),
+                        "departure": segment.get("departure", {}).get("at"),
+                        "arrival": segment.get("arrival", {}).get("at"),
+                        "carrier_code": segment.get("carrierCode"),
+                        "flight_number": segment.get("number"),
+                        "duration": segment.get("duration"),
+                        "price_EUR": price,
+                        "Fetched At": datetime.utcnow(),
+                    })
+
+        df = pd.DataFrame(flights)
+        if not df.empty:
+            name = f"flights_{origin}_{destination}.csv"
+            df.to_csv(os.path.join(DATA_DIR, name), index=False)
+            print(f"💾 Saved Amadeus flight offers → {name} ({len(df)} records)")
+        else:
+            print(f"⚠️ No flight offers found for {origin}-{destination} on {date}")
+        return df
+
     except Exception as e:
         print(f"⚠️ Amadeus flight fetch failed: {e}")
         return pd.DataFrame()
 
-# Master Wrapper Function
+# Run extraction for multiple routes
+def run_amadeus_extraction():
+    print("✈️ Starting Amadeus extraction...")
+    routes = [("CDG", "JFK", "2025-10-25"), ("LHR", "LAX", "2025-10-26")]
+    for origin, dest, date in routes:
+        extract_flight_offers(origin, dest, date)
+    print("✅ Amadeus extraction complete.")
+
+
 def run_all_extractions():
     """Runs all extractors and saves outputs to /data."""
-    # --- Stocks ---
-    try:
-        df_stocks = extract_yahoo()
-        if df_stocks.empty:
-            print("⚠️ Yahoo returned no data, trying Finnhub...")
-            df_stocks = extract_finhub()
-        df_stocks.to_csv(os.path.join(DATA_DIR, "raw_stocks.csv"), index=False)
-        print("💾 Stocks saved: data/raw_stocks.csv")
-    except Exception as e:
-        print(f"❌ Stock extraction failed: {e}")
+    print("\n🚀 Starting Global Extraction Pipeline...\n")
+    run_stock_extraction()
+    extract_airports()
+    extract_transtats()
+    run_amadeus_extraction()
+    print("\n✅ All data sources extracted successfully.\n")
 
-    # --- ICAO Datasets ---
-    for name, func in {
-        "notams": extract_notams,
-        "accidents": extract_accidents,
-        "incidents": extract_incidents
-    }.items():
-        try:
-            df = func()
-            if not df.empty:
-                df.to_csv(os.path.join(DATA_DIR, f"{name}.csv"), index=False)
-                print(f"💾 ICAO {name} saved.")
-        except Exception as e:
-            print(f"⚠️ Failed to fetch ICAO {name}: {e}")
 
-    # --- Amadeus Flight Availability ---
-    df_flights = extract_flight_availabilities("CDG", "JFK", "2025-10-25")
-    if not df_flights.empty:
-        df_flights.to_csv(os.path.join(DATA_DIR, "flight_availabilities.csv"), index=False)
-        print("💾 Flight availability data saved.")
-
-    print("\n✅ Extraction complete for all data sources.")
-
-# Main Execution
 if __name__ == "__main__":
-    run_all_extractions()
-    
+     run_all_extractions()
