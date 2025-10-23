@@ -1,7 +1,0 @@
-{
-    "username": "aeroinvest_user",
-    "password": "strong_password",
-    "host": "localhost",
-    "port": 5432,
-    "database": "aeroinvest"
-}
