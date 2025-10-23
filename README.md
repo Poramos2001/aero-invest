@@ -1,3 +1,8 @@
+<div align="center">
+
+![AeroInvest Logo](AeroInvest_logo_resized.png)
+</div>
+
 # ETL Pipeline Project: AeroInvest
 
 ## Project Overview
@@ -47,24 +52,40 @@ To run this ETL pipeline, you need to have the following installed on your syste
 - Python 3.x
 - Python package manager (Preferably uv, see more in Setup)
 - Google Chrome
-You will also need to install the required dependencies listed in the pyproject.toml file.
+
+You will also need to install the required dependencies listed in the `pyproject.toml` file.
 
 ## Setup
 ### 1. Clone the repository
 First, clone the repository to your local machine using the following code:
 ```bash
-git clone [https://github.com/Poramos2001/aero-invest.git]
+git clone https://github.com/Poramos2001/aero-invest.git
 cd aero-invest
 ```
 ### 2. Create a virtual environment (optional but recommended)
+Using `uv`, which is preferable (see 3.):
+
+```
+uv venv
+```
+
+Or directly with your python installation
+
 ```
 python -m venv venv
+```
+
+Then, remember to activate it before installing the dependencies:
+
+```
 source venv/bin/activate  # For Linux/macOS
 # or
 venv\Scripts\activate  # For Windows
 
 ```
 ### 3. Install dependencies
+
+#### 3.1 Python libraries
 
 Using `uv` is highly recommendable once this project was created using it. To
 install `uv` from `pip` is really straight forward:
@@ -88,33 +109,11 @@ with your usual python package manager (pip, poetry, conda ...). For this,
 refer to the `dependencies` part of the `pyproject.toml` file to see what 
 packages need to be downloaded.
 
+#### 3.2 Google Chrome
 
+The web scraping to download the accident and incident reports (see `src/extract_reports.py` for more information) uses `Selenium` because the NTSB website uses dynamic content.
 
-To set up **ChromeDriver** on Ubuntu, follow these steps:
-
-
-### 🔍 Why you need Google Chrome to use ChromeDriver
-
-**Yes**, you do need to have **Google Chrome installed** on your system to use **ChromeDriver** effectively. Here's why:
-
----
-
-### ✅ ChromeDriver is tightly coupled with Chrome
-
-- **ChromeDriver is a bridge** between Selenium and the Chrome browser.
-- It **controls a real Chrome browser instance** (even in headless mode).
-- It must **match the version** of Chrome installed on your system to work properly.
-
-If Chrome is missing, ChromeDriver won’t have a browser to launch, and you’ll get errors like:
-
-```
-selenium.common.exceptions.WebDriverException: Message: unknown error: cannot find Chrome binary
-```
-
----
-
-
-### ✅ **Step 1: Install Google Chrome (if not already installed)**
+In this project, the driver used was chrome, meaning that you will **need to have Google Chrome installed** to use ChromeDriver effectively.
 
 If you don’t have Chrome yet:
 
@@ -124,6 +123,21 @@ sudo apt install wget
 wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
 sudo apt install ./google-chrome-stable_current_amd64.deb
 ```
+---
+
+> If you are wondering why is Google chrome necessary for the drive, here is why:
+> ChromeDriver is tightly coupled with Chrome
+> - **ChromeDriver is a bridge** between Selenium and the Chrome browser.
+> - It **controls a real Chrome browser instance** (even in headless mode).
+> - It must **match the version** of Chrome installed on your system to work properly.
+> 
+> If Chrome is missing, ChromeDriver won’t have a browser to launch, and you’ll get errors like:
+
+ ```
+ selenium.common.exceptions.WebDriverException: Message: unknown error: cannot find Chrome binary
+```
+
+---
 
 ## Usage
 To run the pipeline simply run the following command:
