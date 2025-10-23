@@ -1,14 +1,11 @@
 import requests
-from bs4 import BeautifulSoup
 from pathlib import Path
-from urllib.parse import urljoin
 import time
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
 from webdriver_manager.chrome import ChromeDriverManager
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
+import pandas as pd
 
 
 def _static_get_request(url, max_retries = 3, delay = 5):
@@ -67,24 +64,29 @@ def _static_get_request(url, max_retries = 3, delay = 5):
             return None
 
 
-def _wait_for_all_pdfs(driver, timeout=20, check_interval=2):
+def _wait_for_all_blocks(driver, timeout=20, check_interval=2):
     end_time = time.time() + timeout
     previous_count = 0
 
     while time.time() < end_time:
-        pdf_elements = driver.find_elements(By.XPATH, "//a[contains(@href, '.pdf')]")
-        current_count = len(pdf_elements)
+        block_elements = driver.find_elements(By.XPATH, "//div[@id='investigation_reports']//div[contains(@class, 'block')]")
+        current_count = len(block_elements)
         if current_count == previous_count and current_count > 0:
-            return pdf_elements
+            return block_elements
         previous_count = current_count
         time.sleep(check_interval)
-    return pdf_elements  # Return whatever was found
+    return block_elements  # Return whatever was found
 
 
 def web_scrap_reports():
     """
-    Scrapes aviation accident report PDFs from the National Transportation 
-    Safety Board (U.S.) website and saves them locally.
+    Scrapes aviation accident reports from the National Transportation 
+    Safety Board (U.S.) website and returns them as a dataframe after saving 
+    each reports PDF locally.
+
+    Returns:
+    -------
+        pandas.DataFrame: All the reports information available on the website.
 
     Notes:
     -------
@@ -108,30 +110,75 @@ def web_scrap_reports():
         return
 
     # Setup Chrome WebDriver
+    print("Setting chrome driver up...")
     options = webdriver.ChromeOptions()
     options.add_argument("--headless")  # Run in background
     service = Service(ChromeDriverManager().install()) # Handles driver download and installation
     driver = webdriver.Chrome(service=service, options=options)
 
+    print("Opening the URL in the browser...")
     driver.get(base_url)
 
-    # Find all links that point to PDFs
-    print("Finding report PDF links...")
-    pdf_elements = _wait_for_all_pdfs(driver) # Wait for JavaScript to load content and extract it
-    pdf_links = [elem.get_attribute("href") for elem in pdf_elements]
-
-    if len(pdf_links) == 0:
-        print(f"\033[91mNo PDFs were found in:\033[0m {base_url}")
-        return   
+    # Find all blocks that point to reports
+    print("Finding report links...")
+    report_blocks = _wait_for_all_blocks(driver) # Wait for JavaScript to load content and extract it
     
+    if len(report_blocks) == 0:
+        print(f"\033[91mNo reports were found in:\033[0m {base_url}")
+        return   
 
+    # Extract and print the data
+    print("\n\n\033[94mFound accident reports:\033[0m")
+    print("-" * 40)
 
+    data = []
+    pdf_links = []
+    for i in range(len(report_blocks)):
+        try:
+            # Re-fetch the block to avoid staleness
+            block = driver.find_elements(By.XPATH, "//div[@id='investigation_reports']//div[contains(@class, 'block')]")[i]
 
-    # TODO: get also report date, number and title
+            # Extract data from this block
+            pdf_link = block.find_element(By.XPATH, ".//div[@class='download']//a[contains(@href, '.pdf')]").get_attribute("href")
+            title = block.find_element(By.XPATH, ".//div[@class='desc']//a").text
+            location = block.find_element(By.XPATH, ".//p[@class='location']").text
+            dates_text = block.find_element(By.XPATH, ".//p[@class='data']").text
+            report_number = block.find_element(By.XPATH, ".//p[@class='report']").text
 
+            print(f"Title: {title}")
+            print(f"PDF: {pdf_link}")
+            print(f"Location: {location}")
+            print(dates_text)
+            print(report_number)
+            print("-" * 40)
 
+            # Clean the necessary strings
+            lines = dates_text.split('\n')
+            accident_date = lines[0].replace("Accident Date: ", "").strip()
+            report_date = lines[1].replace("Report Date: ", "").strip()
 
+            report_number = report_number.replace("Report Number: ", "").strip()
 
+            pdf_name = pdf_link.split("/")[-1]
+
+            data.append({
+                "Title": title,
+                "PDF name": pdf_name,
+                "Location": location,
+                "Accident Date": accident_date,
+                "Report Date": report_date,
+                "Report Number": report_number
+            })
+
+            pdf_links.append(pdf_link)
+
+        except Exception as e:
+            print(f"\033[91mError processing block {i+1}:\033[0m\n {e}")
+
+    driver.quit()
+
+    df = pd.DataFrame(data)
+    
     # Download each PDF
     print("Downloading PDFs...")
     for pdf_url in pdf_links:
@@ -153,6 +200,8 @@ def web_scrap_reports():
         except Exception as e:
             print(f"\033[91mFailed to save {filename}:\033[0m")
             print(f"\t{e}")
+    
+    return df
 
 
 if __name__ == "__main__":
