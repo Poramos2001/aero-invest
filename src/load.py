@@ -83,5 +83,4 @@ def verify_data():
 # Run as script
 # -----------------------------
 if __name__ == "__main__":
-    run_all_loads()
     verify_data()
