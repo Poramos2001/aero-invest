@@ -16,10 +16,7 @@ ssl._create_default_https_context = lambda: ssl_context
 
 # Load environment variables
 load_dotenv()
-DATA_DIR = "data"
-os.makedirs(DATA_DIR, exist_ok=True)
 
-FINNHUB_API_KEY = os.getenv("FINNHUB_API_KEY")
 ICAO_API_KEY = os.getenv("ICAO_API_KEY")
 AMADEUS_API_KEY = os.getenv("AMADEUS_API_KEY")
 AMADEUS_API_SECRET = os.getenv("AMADEUS_API_SECRET")
@@ -37,9 +34,10 @@ def extract_airports():
     try:
         df = pd.read_csv(url)
         df["Fetched At"] = datetime.utcnow()
-        df.to_csv(os.path.join(DATA_DIR, "airports.csv"), index=False)
+
         print(f"✅ Airports dataset fetched successfully ({len(df)} records).")
         print("💾 Saved airports → data/airports.csv")
+
         return df
     except Exception as e:
         print(f"⚠️ Failed to fetch airports: {e}")
@@ -86,11 +84,10 @@ def extract_transtats():
         df["Fetched At"] = datetime.utcnow()
 
         # Save to CSV
-        output_path = os.path.join(DATA_DIR, "transtats_air_traffic.csv")
-        df.to_csv(output_path, index=False)
+        # output_path = os.path.join(DATA_DIR, "transtats_air_traffic.csv")
 
         print(f"✅ TranStats data fetched successfully ({len(df)} records).")
-        print(f"💾 Saved dataset → {output_path}")
+        print("Returned dataset")
 
         return df
 
@@ -161,9 +158,7 @@ def extract_flight_offers(origin, destination, date):
 
         df = pd.DataFrame(flights)
         if not df.empty:
-            name = f"flights_{origin}_{destination}.csv"
-            df.to_csv(os.path.join(DATA_DIR, name), index=False)
-            print(f"💾 Saved Amadeus flight offers → {name} ({len(df)} records)")
+            print(f"💾 Fetched Amadeus flight offers  ({len(df)} records)")
         else:
             print(f"⚠️ No flight offers found for {origin}-{destination} on {date}")
         return df
@@ -174,8 +169,15 @@ def extract_flight_offers(origin, destination, date):
 
 # Run extraction for multiple routes
 def run_amadeus_extraction():
+    df = pd.DataFrame(columns=["origin","destination","departure", "arrival",
+                               "carrier_code", "flight_number", "duration",
+                               "price_EUR", "Fetched At"])
+    
     print("✈️ Starting Amadeus extraction...")
     routes = [("CDG", "JFK", "2025-10-25"), ("LHR", "LAX", "2025-10-26")]
     for origin, dest, date in routes:
-        extract_flight_offers(origin, dest, date)
+        df_aux = extract_flight_offers(origin, dest, date)
+        df = pd.concat([df, df_aux], ignore_index=True)
+    
     print("✅ Amadeus extraction complete.")
+    return df

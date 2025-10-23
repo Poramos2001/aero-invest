@@ -225,7 +225,8 @@ def web_scrap_reports():
             print(f"\033[91mFailed to save {filename}:\033[0m")
             print(f"\t{e}")
     
-    return df
+    print("\033[91mFinished web scraping reports\033[0m")
+    return df, report_folder
 
 
 if __name__ == "__main__":
