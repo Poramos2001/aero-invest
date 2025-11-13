@@ -1,11 +1,11 @@
-import requests
-from pathlib import Path
-import time
-from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.common.by import By
-from webdriver_manager.chrome import ChromeDriverManager
 import pandas as pd
+from pathlib import Path
+import requests
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.firefox.service import Service as FirefoxService
+from selenium.webdriver.firefox.options import Options as FirefoxOptions
+import time
 
 
 def _static_get_request(url, max_retries = 3, delay = 5):
@@ -66,27 +66,22 @@ def _static_get_request(url, max_retries = 3, delay = 5):
 
 def _wait_for_all_blocks(driver, timeout=20, check_interval=2):
     """
-    Waits for the list of report blocks on the NTSB aviation reports page to stabilize,
-    indicating that all dynamically loaded content has likely finished rendering.
-
-    This function repeatedly checks the number of <div class="block"> elements inside
-    the <div id="investigation_reports"> container. It returns the list of elements
-    once the count stops changing between checks, or when the timeout is reached.
+    Waits for the list of report blocks on the NTSB aviation reports page to stabilize.
 
     Parameters:
     ----------
-    driver : selenium.webdriver.Chrome
+    driver : selenium.webdriver.remote.webdriver.WebDriver
         The active Selenium WebDriver instance controlling the browser.
     timeout : int, optional
-        Maximum time to wait (in seconds) before returning the current list of blocks.
-        Default is 20 seconds.
+        Maximum time to wait (in seconds). Default is 20 seconds.
     check_interval : int, optional
-        Time interval (in seconds) between consecutive checks. Default is 2 seconds.
+        Time interval (in seconds) between checks. Default is 2 seconds.
 
     Returns:
     -------
-    list of selenium.webdriver.remote.webelement.WebElement
-        A list of <div class="block"> elements found inside the investigation_reports container.
+    list[selenium.webdriver.remote.webelement.WebElement]
+        A list of <div class="block"> elements found inside the 
+    #investigation_reports container.
         May be incomplete if the timeout is reached before stabilization.
     """
     end_time = time.time() + timeout
@@ -133,12 +128,15 @@ def web_scrap_reports():
         print("Could not download pdfs because the HTTP get request did not come through.")
         return
 
-    # Setup Chrome WebDriver
-    print("Setting chrome driver up...")
-    options = webdriver.ChromeOptions()
+    # Setup Firefox WebDriver
+    print("Setting Firefox driver up...")
+    options = FirefoxOptions()
     options.add_argument("--headless")  # Run in background
-    service = Service(ChromeDriverManager().install()) # Handles driver download and installation
-    driver = webdriver.Chrome(service=service, options=options)
+    options.binary_location = '/snap/firefox/current/usr/lib/firefox/firefox'
+    
+    print("Installing the necessary drivers (if not installed)...")
+    service = FirefoxService() # Handles driver download and installation
+    driver = webdriver.Firefox(service=service, options=options)
 
     print("Opening the URL in the browser...")
     driver.get(base_url)
@@ -199,12 +197,24 @@ def web_scrap_reports():
         except Exception as e:
             print(f"\033[91mError processing block {i+1}:\033[0m\n {e}")
 
-    driver.quit()
+    
+    if driver is not None:
+        try:
+            driver.quit()
+        except Exception as e:
+            print(f"[warn] Ignoring driver.quit() error: {e}")
+
+
+    if service:
+        try:
+            service.stop()
+        except Exception as e:
+            print(f"[warn] Ignoring service.stop() error: {e}")
 
     df = pd.DataFrame(data)
     
     # Download each PDF
-    print("Downloading PDFs...")
+    print("\033[94mDownloading PDFs...\033[0m")
     for pdf_url in pdf_links:
         filename = pdf_url.split("/")[-1]
         filepath = report_folder / filename
@@ -225,7 +235,7 @@ def web_scrap_reports():
             print(f"\033[91mFailed to save {filename}:\033[0m")
             print(f"\t{e}")
     
-    print("\033[91mFinished web scraping reports\033[0m")
+    print("\033[92mFinished web scraping reports\033[0m")
     return df, report_folder
 
 
