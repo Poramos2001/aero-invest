@@ -51,7 +51,7 @@ AeroInvest/
 To run this ETL pipeline, you need to have the following installed on your system:
 - Python 3.x
 - Python package manager (Preferably uv, see more in Setup)
-- Google Chrome
+- Mozilla Firefox
 
 You will also need to install the required dependencies listed in the `pyproject.toml` file.
 
@@ -109,33 +109,54 @@ with your usual python package manager (pip, poetry, conda ...). For this,
 refer to the `dependencies` part of the `pyproject.toml` file to see what 
 packages need to be downloaded.
 
-#### 3.2 Google Chrome
+#### 3.2 Mozilla Firefox
 
-The web scraping to download the accident and incident reports (see `src/extract_reports.py` for more information) uses `Selenium` because the NTSB website uses dynamic content.
+The web scraping to download the accident and incident reports (see `src/extract_reports.py` for more information) uses **Selenium** because the NTSB website relies on dynamic content.
 
-In this project, the driver used was chrome, meaning that you will **need to have Google Chrome installed** to use ChromeDriver effectively.
+In this project, the driver used is **Firefox**, meaning you will **need to have Mozilla Firefox installed** to use Geckodriver effectively.
 
-If you don’t have Chrome yet:
+If you don’t have Firefox yet:
 
 ```bash
+# Update package list
 sudo apt update
-sudo apt install wget
-wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
-sudo apt install ./google-chrome-stable_current_amd64.deb
-```
----
 
-> If you are wondering why is Google chrome necessary for the drive, here is why:
-> ChromeDriver is tightly coupled with Chrome
-> - **ChromeDriver is a bridge** between Selenium and the Chrome browser.
-> - It **controls a real Chrome browser instance** (even in headless mode).
-> - It must **match the version** of Chrome installed on your system to work properly.
-> 
-> If Chrome is missing, ChromeDriver won’t have a browser to launch, and you’ll get errors like:
-
- ```
- selenium.common.exceptions.WebDriverException: Message: unknown error: cannot find Chrome binary
+# Install Firefox (Debian/Ubuntu)
+sudo apt install firefox
 ```
+
+> **Note:** On some systems, Firefox may be installed via **Snap** by default. Selenium requires the actual Firefox binary (ELF executable), not the Snap wrapper. If you encounter issues, install the `.deb` version or the ESR build:
+>
+> ```bash
+> # Add Mozilla Team PPA for official .deb builds
+>sudo add-apt-repository ppa:mozillateam/ppa -y
+>sudo apt update
+>
+># Install Firefox (latest stable)
+>sudo apt install firefox
+> ```
+
+##### For Debian ESR:
+```bash
+sudo apt install firefox-esr
+```
+
+Alternatively, you can download the official tarball from Mozilla:
+
+```bash
+wget https://download.mozilla.org/?product=firefox-latest&os=linux64&lang=en-US -O firefox.tar.bz2
+tar -xf firefox.tar.bz2
+# Then set binary path in your code:
+# options.binary_location = "/path/to/firefox/firefox"
+```
+
+> **Why is Firefox necessary for the driver?**
+>
+> Geckodriver is tightly coupled with Firefox:
+>
+> *   **Geckodriver is a bridge** between Selenium and the Firefox browser.
+> *   It **controls a real Firefox browser instance** (even in headless mode).
+> *   It must **match the version** of Firefox installed on your system to work properly.
 
 ---
 
